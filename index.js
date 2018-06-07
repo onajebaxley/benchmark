@@ -2,7 +2,7 @@
 
 const MongoClient = require('mongodb').MongoClient;
 
-const uri = 'mongodb://mongo-0.mongo,mongo-1.mongo,mongo-2.mongo:27017';
+const uri = 'mongodb://mongo-0.mongo:27017';
 
 MongoClient.connect(uri, testDb);
 
