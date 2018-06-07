@@ -1,0 +1,24 @@
+{
+  "name": "mongodb-benchmark",
+  "version": "0.0.1",
+  "description": "Benchmarks MongoDB write operations against different Kubernetes storage classes",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "mongo",
+    "mongodb",
+    "benchmark",
+    "kubernetes",
+    "storage",
+    "class",
+    "aws"
+  ],
+  "author": "Onaje K. Baxley",
+  "license": "ISC",
+  "dependencies": {
+    "mongodb": "^3.0.10"
+  }
+}
