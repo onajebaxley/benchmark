@@ -33,7 +33,7 @@ function parseCsvData(dataFile) {
 
 // console.log(JSON.stringify(sampleData[235]));
 
-const uri = 'mongodb://mongo-0.mongo:27017';
+const uri = 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017';
 
 console.log(`Attempting to connect to ${uri}...`);
 MongoClient.connect(uri, init);
