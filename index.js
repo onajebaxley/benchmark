@@ -78,7 +78,7 @@ function parseCsvData(dataFile) {
 function timeRecordInsertion(collection, numRecords) {
     return new Promise((resolve, reject) => {
         let sampleData = parseCsvData(data);
-        let initSampleLength = sampleData.length;
+        let numDuplicates = 0;
 
         console.log(`Duplicating test data from ${sampleData.length} to ${numRecords} records...`);
         // Add elements to array until it reaches target numRecords
@@ -86,8 +86,9 @@ function timeRecordInsertion(collection, numRecords) {
             let arbIndex = Math.floor(Math.random() * (sampleData.length - 1));
             // TODO: fix cloning such that cloned objects dont share same ObjectId
             sampleData.push(_clone(sampleData[arbIndex]));
+            numDuplicates += 1;
         }
-        console.log(`Test data reached ${sampleData.length}. ${numRecords - initSampleLength} records duped`);
+        console.log(`Test data reached ${sampleData.length}. ${numDuplicates} records duped`);
 
         // Insert 1000 records
         console.log(`Inserting documents into ${collection.collectionName}...`);
