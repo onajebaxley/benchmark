@@ -2,6 +2,7 @@
 
 const MongoClient = require('mongodb').MongoClient;
 const fs = require('fs');
+const _clone = require('clone');
 const data = fs.readFileSync('./demographics.csv');
 
 
@@ -73,7 +74,7 @@ function timeRecordInsertion(collection, numRecords) {
         // add elements to array until it reaches target numRecords
         while (sampleData.length < numRecords) {
             let arbIndex = Math.floor(Math.random() * (sampleData.length - 1));
-            sampleData.push(sampleData[arbIndex]);
+            sampleData.push(_clone(sampleData[arbIndex]));
         }
 
         console.log(`Test data reached ${sampleData.length}`);
