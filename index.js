@@ -41,6 +41,7 @@ function parseCsvData(dataFile) {
 
     // Populate & format array of objects from CSV
     const formattedObjects = [];
+    const ids = [];
     for(let i = 1; i < dataArr.length - 1; i++) {
         let data = dataArr[i].split(',');
         let obj = {};
@@ -50,6 +51,13 @@ function parseCsvData(dataFile) {
 
         // Add unique "_id" field from first header
         obj['_id'] = data[0].trim();
+        // TODO: Remove debugging loop below (when applicable)
+        if (ids.indexOf(obj['_id']) < 0) {
+            console.log(`${obj['_id']}`);
+            ids.push(obj['_id']);
+        } else {
+            console.log(`ERROR pushing duplicate id: ${obj['_id']} at index ${i + 1}`);
+        }
 
         formattedObjects.push(obj);
     }
