@@ -27,7 +27,7 @@ const TARGET_RECORD_QUANTIY = 1000;
  * @return {Array} Containing objects defined in the csv 
  */
 function parseCsvData(dataFile) {
-    let dataArr = bufferString.toString().split('\n');
+    let dataArr = dataFile.toString().split('\n');
     let headers = dataArr[0].toLowerCase().split(',');
     let fields = [];
 
@@ -123,12 +123,12 @@ function init(err, clientConn) {
     // Create a collection
     console.log(`Creating arbitrary ${TABLE_NAME} collection...`);
     db.createCollection(TABLE_NAME, TABLE_OPTIONS).then((res) => {
-        console.log(`Result of creation: ${res}`);
+        console.log(`Collection ${res.collectionName} created`);
 
         // Run test
         return timeRecordInsertion(res, TARGET_RECORD_QUANTIY);
     }).then((res) => {
-        console.log(`Test completed. Time diff: ${res}`);
+        console.log(`Insertion(s) complete. Time diff: ${res}`);
 
         clientConn.close();
         return;
