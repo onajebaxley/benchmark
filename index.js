@@ -103,7 +103,7 @@ function timeRecordInsertion(collection, numRecords) {
 
             hrTime = process.hrtime();
             let endTime = hrTime[0] * 1000000000 + hrTime[1]; // end time in sE(-9)
-            let nanoDiff = endTime - starTime;
+            let nanoDiff = endTime - startTime;
 
             console.log(`Took ${nanoDiff} seconds to insert ${numRecords} records`);
 
@@ -149,7 +149,7 @@ function init(err, clientConn) {
         console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
-        return timeRecordInsertion(res, TARGET_RECORD_QUANTIY);
+        return timeRecordInsertion(collection, TARGET_RECORD_QUANTIY);
     }).then((res) => {
         console.log(`Insertion(s) complete. Time diff: ${res}`);
 
