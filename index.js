@@ -14,7 +14,7 @@ const data = fs.readFileSync('./demographics.csv');
 const URI = 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
-const TABLE_OPTIONS = { autoIndexId: false };
+const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { sparse: true, unique: false } };
 const TARGET_RECORD_QUANTIY = 1000;
 
 
@@ -67,20 +67,22 @@ function parseCsvData(dataFile) {
 function timeRecordInsertion(collection, numRecords) {
     return new Promise((resolve, reject) => {
         let sampleData = parseCsvData(data);
-        let hrTime = process.hrtime();
-        let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
+        let initSampleLength = sampleData.length;
 
         console.log(`Duplicating test data from ${sampleData.length} to ${numRecords} records...`);
-        // add elements to array until it reaches target numRecords
+        // Add elements to array until it reaches target numRecords
         while (sampleData.length < numRecords) {
             let arbIndex = Math.floor(Math.random() * (sampleData.length - 1));
             // TODO: fix cloning such that cloned objects dont share same ObjectId
             sampleData.push(_clone(sampleData[arbIndex]));
         }
-
-        console.log(`Test data reached ${sampleData.length}`);
+        console.log(`Test data reached ${sampleData.length}. ${numRecords - initSampleLength} records duped`);
 
         // Insert 1000 records
+        console.log(`Inserting documents into ${collection.collectionName}...`);
+        let hrTime = process.hrtime();
+        let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
+
         collection.insertMany(sampleData, {}, (err, res) => {
             if (err) {
                 console.log(`ERROR inserting into collection: ${err.message}`);
