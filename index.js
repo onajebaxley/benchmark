@@ -138,8 +138,15 @@ function init(err, clientConn) {
 
     // Create a collection
     console.log(`Creating arbitrary ${TABLE_NAME} collection...`);
+    let collection = null;
     db.createCollection(TABLE_NAME, TABLE_OPTIONS).then((res) => {
         console.log(`Collection ${res.collectionName} created`);
+
+        collection = res;
+        console.log(`Deleting items in collection ${collection.collectionName}...`);
+        return collection.deleteMany({});
+    }).then((res) => {
+        console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
         return timeRecordInsertion(res, TARGET_RECORD_QUANTIY);
