@@ -14,7 +14,7 @@ const data = fs.readFileSync('./demographics.csv');
 const URI = 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
-const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { sparse: true, unique: false } };
+const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { } };
 const TARGET_RECORD_QUANTIY = 1000;
 
 
@@ -47,6 +47,9 @@ function parseCsvData(dataFile) {
         for(let j = 0; j < data.length; j++) {
             obj[fields[j].trim()] = data[j].trim();
         }
+
+        // Add unique "_id" field from first header
+        obj['_id'] = data[0].trim();
 
         formattedObjects.push(obj);
     }
