@@ -5,12 +5,13 @@ const fs = require('fs');
 const data = fs.readFileSync('./demographics.csv');
 
 
-///////////////////////
-//   Configuration   //
-///////////////////////
+//////////////////////////////
+//   Script Configuration   //
+//////////////////////////////
 
 // const URI = 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017?replicaSet=rs0';
 const URI = 'mongodb://mongo-0.mongo:27017';
+const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
 const TABLE_OPTIONS = { };
 const TARGET_RECORD_QUANTIY = 1000;
@@ -18,7 +19,7 @@ const TARGET_RECORD_QUANTIY = 1000;
 
 /**
  * Returns an array of objects generated from the given CSV data,
- * where each objects keys are the lowercase headers on the first line
+ * where each objects' keys are the lowercase headers on the first line
  * of the CSV.
  *
  * @param {string} dataFile The data read from some csv
@@ -37,7 +38,7 @@ function parseCsvData(dataFile) {
         fields.push(refined);
     }
 
-    // Populate array of objects from CSV
+    // Populate & format array of objects from CSV
     const formattedObjects = [];
     for(let i = 1; i < dataArr.length - 1; i++) {
         let data = dataArr[i].split(',');
@@ -59,8 +60,8 @@ function parseCsvData(dataFile) {
  * @param {Collection} collection The MongoClient.Collection receiving records
  * @param {int} numRecords The number of records to insert
  *
- * @return {int} The time (in nanoseconds) to insert the target number of
- *               records.
+ * @return {Promise<int>} The time (in nanoseconds) to insert the target number
+ *         of records.
  */
 function timeRecordInsertion(collection, numRecords) {
     return new Promise((resolve, reject) => {
@@ -95,11 +96,13 @@ function timeRecordInsertion(collection, numRecords) {
     });
 }
 
-console.log(`Attempting to connect to ${URI}...`);
-MongoClient.connect(URI, init);
 
 /**
- * Entrypoint: creates the desired table and performs benchmark.
+ * Entrypoint: creates the desired table, then performs benchmark and logs
+ * output.
+ *
+ * @param {MongoError} err The error to be populated if client connection fails
+ * @param {MongoClient} clientConn The connected client
  */
 function init(err, clientConn) {
     if (err) {
@@ -109,10 +112,10 @@ function init(err, clientConn) {
     }
     console.log(`Connected.`);
 
-    const dbName = 'test';
-    const db = clientConn.db(dbName);
+    const db = clientConn.db(DB_NAME);
 
-    // check server config
+    // Check server config
+    // TODO: delete extraneous config log below
     const config = db.serverConfig;
     console.log('db server config:');
     console.log(config);
@@ -134,6 +137,10 @@ function init(err, clientConn) {
         clientConn.close();
     });
 }
+
+console.log(`Attempting to connect to ${URI}...`);
+MongoClient.connect(URI, init);
+
 
 module.exports.init = init;
 module.exports.timeRecordInsertion = timeRecordInsertion;
