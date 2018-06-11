@@ -11,7 +11,7 @@ const data = fs.readFileSync('./demographics.csv');
 //////////////////////////////
 
 // const URI = 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017?replicaSet=rs0';
-const URI = 'mongodb://mongo-0.mongo:27017';
+const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
 const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { } };
