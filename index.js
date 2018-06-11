@@ -13,7 +13,7 @@ const data = fs.readFileSync('./demographics.csv');
 const URI = 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
-const TABLE_OPTIONS = { };
+const TABLE_OPTIONS = { autoIndexId: false };
 const TARGET_RECORD_QUANTIY = 1000;
 
 
