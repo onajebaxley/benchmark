@@ -74,6 +74,7 @@ function timeRecordInsertion(collection, numRecords) {
         // add elements to array until it reaches target numRecords
         while (sampleData.length < numRecords) {
             let arbIndex = Math.floor(Math.random() * (sampleData.length - 1));
+            // TODO: fix cloning such that cloned objects dont share same ObjectId
             sampleData.push(_clone(sampleData[arbIndex]));
         }
 
