@@ -1,15 +1,16 @@
 'use strict';
 
 const MongoClient = require('mongodb').MongoClient;
+const SeparatorChunker = require('chunking-streams').SeparatorChunker;
 const fs = require('fs');
 const _clone = require('clone');
-const data = fs.readFileSync('./demographics.csv');
 
 
 //////////////////////////////
 //   Script Configuration   //
 //////////////////////////////
 
+const DATA_FILEPATH = './demographics.csv';
 // const URI = 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017?replicaSet=rs0';
 const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
@@ -19,16 +20,17 @@ const TARGET_RECORD_QUANTIY = 1000;
 
 
 /**
- * Returns an array of objects generated from the given CSV data,
+ * Returns an array of objects generated from the given CSV file's data,
  * where each objects' keys are the lowercase headers on the first line
  * of the CSV.
  *
- * @param {string} dataFile The data read from some csv
+ * @param {string} dataFilePath The filepath to the desired csv
  *
- * @return {Array} Containing objects defined in the csv 
+ * @return {Array} Containing objects as defined in the csv 
  */
-function parseCsvData(dataFile) {
-    let dataArr = dataFile.toString().split('\n');
+function parseCsvData(dataFilePath) {
+    let dataBlock = fs.readFileSync(dataFilePath);
+    let dataArr = dataBlock.toString().split('\n');
     let headers = dataArr[0].toLowerCase().split(',');
     let fields = [];
 
@@ -77,7 +79,7 @@ function parseCsvData(dataFile) {
  */
 function timeRecordInsertion(collection, numRecords) {
     return new Promise((resolve, reject) => {
-        let sampleData = parseCsvData(data);
+        let sampleData = parseCsvData(DATA_FILEPATH);
         let numDuplicates = 0;
 
         console.log(`Duplicating test data from ${sampleData.length} to ${numRecords} records...`);
@@ -112,6 +114,124 @@ function timeRecordInsertion(collection, numRecords) {
     });
 }
 
+/**
+ * Returns an array of lowercase fields from a single string of comma-separated
+ * words. Any spaces in the string will be converted to underscores.
+ *
+ * @param {String} str The string to parse fields from
+ *
+ * @return {Array} Containing a lowercased, underscored field for each element
+ */
+function parseFieldsFromString(str) {
+    let fields = [];
+    let headers = str.toLowerCase().split(',');
+
+    for (let i = 0; i < headers.length; i++) {
+        let refined = headers[i].trim().replace(/[\W_]+/g, '_');
+
+        fields.push(refined);
+    }
+
+    return fields;
+}
+
+/**
+ * Parses the given string for comma-separated values, and returns an object
+ * whose keys are the given array of fields, and whose respective values
+ * are determined based on their ordering in the comma-separated string.
+ *
+ * @param {String} str The single comma-separated string of values
+ * @param {Array} fields The array of fields to become the object's keys
+ *
+ * @return {Object} The resulting parsed 1-level-deep object
+ */
+function parseObjectFromString(str, fields) {
+    let numOfFields = fields.length;
+    let values = str.split(',');
+    let obj = { };
+
+    for (let i = 0; i < values.length; i++) {
+        if (i + 1 > numOfFields) {
+            break;
+        }
+        obj[fields[i].trim()] = values[i].trim();
+    }
+
+    // Add unique "_id" field from first header
+    obj['_id'] = values[0].trim();
+
+    return obj;
+}
+
+/**
+ * Inserted the given object into the specified collection. Promise returns
+ * integer 1 if insertion was successful.
+ *
+ * @param {Collection} collection the MongoClient.Collection receiving records
+ * @param {Object} objectToInsert The plain JS object to be inserted
+ *
+ * @return {Promise<int>} Truthy integer 1 indicating success
+ */
+function insertRecord(collection, objectToInsert) {
+    return new Promise((resolve, reject) => {
+        collection.insert(objectToInsert, {}, (err, res) => {
+            if (err) {
+                console.log(`ERROR inserting into collection: ${err.message}`);
+                return reject(err);
+            }
+
+            return resolve(1);
+        });
+    });
+}
+
+/**
+ * Computes the time (in nanoseconds) to insert some target amount of
+ * objects into the given Collection. Unlike timeRecordInsertion, this uses
+ * a memory-efficient stream and inserts individual records one at a time.
+ *
+ * @param {Collection} collection The MongoClient.Collection receiving records
+ * @param {int} numRecords The number of records to insert
+ *
+ * @return {Promise<int>} The time (in nanoseconds) to insert the target number
+ *         of records.
+ */
+function timeStreamInsertion(collection, numRecords) {
+    return new Promise((resolve, reject) => {
+        let recordsInserted = 0;
+        let fields = [];
+        let dataStream = fs.createReadStream(DATA_FILEPATH);
+        dataStream.setEncoding('utf8');
+        let chunker = new SeparatorChunker();
+        chunker.on('data', (chunk) => {
+            chunk = chunk.toString();
+
+            // If string contains no numbers at all, must be header of csv
+            if (!(/\d/.test(chunk))) {
+                fields = parseFieldsFromString(chunk);
+            } else if (recordsInserted < numRecords) {
+                let anObj = parseObjectFromString(chunk, fields);
+
+                insertRecord(collection, anObj).then((res) => {
+                    recordsInserted += res;
+                }).catch((err) => {
+                    // do nothing
+                });
+            } else {
+                hrTime = process.hrtime();
+                let endTime = hrTime[0] * 1000000000 + hrTime[1]; // end time in sE(-9)
+                let nanoDiff = endTime - startTime;
+
+                return resolve(nanoDiff);
+            }
+        });
+
+        let hrTime = process.hrtime();
+        let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
+
+        dataStream.pipe(chunker);
+    });
+}
 
 /**
  * Entrypoint: creates the desired table, then performs benchmark and logs
@@ -130,12 +250,6 @@ function init(err, clientConn) {
 
     const db = clientConn.db(DB_NAME);
 
-    // Check server config
-    // TODO: delete extraneous config log below
-    const config = db.serverConfig;
-    console.log('db server config:');
-    console.log(config);
-
     // Create a collection
     console.log(`Creating arbitrary ${TABLE_NAME} collection...`);
     let collection = null;
@@ -149,7 +263,7 @@ function init(err, clientConn) {
         console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
-        return timeRecordInsertion(collection, TARGET_RECORD_QUANTIY);
+        return timeStreamInsertion(collection, TARGET_RECORD_QUANTIY);
     }).then((res) => {
         console.log(`Insertion(s) complete. Time diff: ${res}`);
 
@@ -164,7 +278,7 @@ function init(err, clientConn) {
 console.log(`Attempting to connect to ${URI}...`);
 MongoClient.connect(URI, init);
 
-
 module.exports.init = init;
 module.exports.timeRecordInsertion = timeRecordInsertion;
+module.exports.timeStreamInsertion = timeStreamInsertion;
 
