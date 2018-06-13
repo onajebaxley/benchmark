@@ -174,12 +174,14 @@ function parseObjectFromString(str, fields) {
  */
 function insertRecord(collection, objectToInsert) {
     return new Promise((resolve, reject) => {
+        console.log(`Inserting record for zip: ${objectToInsert.jurisdiction_name}...`);
         collection.insert(objectToInsert, {}, (err, res) => {
             if (err) {
                 console.log(`ERROR inserting into collection: ${err.message}`);
                 return reject(err);
             }
 
+            console.log('success');
             return resolve(1);
         });
     });
@@ -209,11 +211,13 @@ function timeStreamInsertion(collection, numRecords) {
             // If string contains no numbers at all, must be header of csv
             if (!(/\d/.test(chunk))) {
                 fields = parseFieldsFromString(chunk);
+                console.log(`Parsed fields as: ${JSON.stringify(fields)}`);
             } else if (recordsInserted < numRecords) {
                 let anObj = parseObjectFromString(chunk, fields);
 
                 insertRecord(collection, anObj).then((res) => {
                     recordsInserted += res;
+                    console.log(`Records inserted: ${recordsInserted}`);
                 }).catch((err) => {
                     // do nothing
                 });
