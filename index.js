@@ -4,6 +4,7 @@ const MongoClient = require('mongodb').MongoClient;
 const SeparatorChunker = require('chunking-streams').SeparatorChunker;
 const fs = require('fs');
 const _clone = require('clone');
+const sleep = require('sleep');
 
 
 //////////////////////////////
@@ -214,6 +215,8 @@ function timeStreamInsertion(collection, numRecords) {
                 console.log(`Parsed fields as: ${JSON.stringify(fields)}`);
             } else if (recordsInserted < numRecords) {
                 let anObj = parseObjectFromString(chunk, fields);
+
+                sleep.msleep(500); // sleep for 0.5s
 
                 insertRecord(collection, anObj).then((res) => {
                     recordsInserted += res;
