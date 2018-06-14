@@ -4,7 +4,7 @@ const MongoClient = require('mongodb').MongoClient;
 const SeparatorChunker = require('chunking-streams').SeparatorChunker;
 const fs = require('fs');
 const _clone = require('clone');
-const sleep = require('sleep');
+// const sleep = require('sleep');
 
 
 //////////////////////////////
@@ -17,7 +17,7 @@ const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
 const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { } };
-const TARGET_RECORD_QUANTIY = 1000;
+const TARGET_RECORD_QUANTITY = 2500;
 
 
 /**
@@ -207,6 +207,7 @@ function timeStreamInsertion(collection, numRecords) {
         dataStream.setEncoding('utf8');
         let chunker = new SeparatorChunker();
         chunker.on('data', (chunk) => {
+            setTimeout(() => {
             chunk = chunk.toString();
 
             // If string contains no numbers at all, must be header of csv
@@ -215,8 +216,6 @@ function timeStreamInsertion(collection, numRecords) {
                 console.log(`Parsed fields as: ${JSON.stringify(fields)}`);
             } else if (recordsInserted < numRecords) {
                 let anObj = parseObjectFromString(chunk, fields);
-
-                sleep.msleep(500); // sleep for 0.5s
 
                 insertRecord(collection, anObj).then((res) => {
                     recordsInserted += res;
@@ -231,10 +230,26 @@ function timeStreamInsertion(collection, numRecords) {
 
                 return resolve(nanoDiff);
             }
+            }, 100 + Math.ceil(numRecords / (recordsInserted + 1)));
         });
 
         let hrTime = process.hrtime();
         let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
+        // let isPaused = true;
+
+        // console.log(`dataStream._readableState.ended?: ${dataStream._readableState.ended}`);
+
+        // while (!dataStream._readableState.ended) {
+        //     if (!isPaused) {
+        //         console.log(`piped`);
+        //         dataStream.unpipe(chunker);
+        //         isPaused = true;
+        //     } else {
+        //         console.log(`unpiped`);
+        //         isPaused = false;
+        //         dataStream.pipe(chunker);
+        //     }
+        // }
 
         dataStream.pipe(chunker);
     });
@@ -270,7 +285,7 @@ function init(err, clientConn) {
         console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
-        return timeStreamInsertion(collection, TARGET_RECORD_QUANTIY);
+        return timeStreamInsertion(collection, TARGET_RECORD_QUANTITY);
     }).then((res) => {
         console.log(`Insertion(s) complete. Time diff: ${res}`);
 
