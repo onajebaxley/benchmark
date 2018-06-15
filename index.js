@@ -4,7 +4,7 @@ const MongoClient = require('mongodb').MongoClient;
 const SeparatorChunker = require('chunking-streams').SeparatorChunker;
 const fs = require('fs');
 const _clone = require('clone');
-// const sleep = require('sleep');
+const _each = require('bluebird').Promise.each;
 
 
 //////////////////////////////
@@ -12,11 +12,10 @@ const _clone = require('clone');
 //////////////////////////////
 
 const DATA_FILEPATH = './demographics.csv';
-// const URI = 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017?replicaSet=rs0';
-const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017';
+const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017?replicaSet=rs0';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
-const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { } };
+const TABLE_OPTIONS = { autoIndexId: false, capped: true, size: 100000000 };
 const TARGET_RECORD_QUANTITY = 5000;
 
 
@@ -53,13 +52,13 @@ function parseCsvData(dataFilePath) {
         }
 
         // Add unique "_id" field from first header
-        obj['_id'] = data[0].trim();
+        obj['_id'] = `${data[0].trim()}-${process.hrtime()[0]}`;
         // TODO: Remove debugging loop below (when applicable)
-        if (ids.indexOf(obj['_id']) < 0) {
-            ids.push(obj['_id']);
-        } else {
-            console.log(`ERROR pushing duplicate id: ${obj['_id']} at index ${i + 1}`);
-        }
+        // if (ids.indexOf(obj['_id']) < 0) {
+        //     ids.push(obj['_id']);
+        // } else {
+        //     console.log(`ERROR pushing duplicate id: ${obj['_id']} at index ${i + 1}`);
+        // }
 
         formattedObjects.push(obj);
     }
@@ -122,15 +121,13 @@ function timeRecordInsertion(collection, numRecords) {
         let hrTime = process.hrtime();
         let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
 
-        // TODO: Consider inserting via callback (ensuring order) vs for-loop
-        for (let i = 0; i < sampleData.length; i++) {
-            let waitTime = 100 + Math.ceil((numRecords * 2) / (i + 1));
+        // let waitTime = 100 + Math.ceil((numRecords * 2) / (i + 1));
 
-            setTimeout(() => {
-                console.log(`Inserting ${sampleData[i].jurisdiction_name}...`);
-                collection.insert(sampleData[i], {}, _insertCb);
-            }, waitTime);
-        }
+        _each(sampleData, anObject => {
+            return insertRecord(collection, anObject);
+        }).then(res => {
+            _computeTimeDiff();
+        });
 
         // collection.insertMany(sampleData, {}, (err, res) => {
         //     if (err) {
@@ -209,16 +206,19 @@ function parseObjectFromString(str, fields) {
  */
 function insertRecord(collection, objectToInsert) {
     return new Promise((resolve, reject) => {
-        console.log(`Inserting record for zip: ${objectToInsert.jurisdiction_name}...`);
-        collection.insert(objectToInsert, {}, (err, res) => {
-            if (err) {
-                console.log(`ERROR inserting into collection: ${err.message}`);
-                return reject(err);
-            }
+        setTimeout(() => {
+            console.log(`Inserting record for zip: ${objectToInsert.jurisdiction_name}...`);
+            collection.insert(objectToInsert, {}, (err, res) => {
+                if (err) {
+                    console.log(`ERROR inserting into collection: ${err.message}`);
+                    // return reject(err);
+                } else {
+                    console.log(`Insert ${objectToInsert.jurisdiction_name} successful`);
+                }
 
-            console.log('success');
-            return resolve(1);
-        });
+                return resolve(1);
+            });
+        }, 100);
     });
 }
 
@@ -313,10 +313,10 @@ function init(err, clientConn) {
         console.log(`Collection ${res.collectionName} created`);
 
         collection = res;
-        console.log(`Deleting items in collection ${collection.collectionName}...`);
-        return collection.deleteMany({});
-    }).then((res) => {
-        console.log(`Collection wiped. ${res.n} documents deleted`);
+        // console.log(`Deleting items in collection ${collection.collectionName}...`);
+        // return collection.deleteMany({});
+        // }).then((res) => {
+        // console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
         return timeRecordInsertion(collection, TARGET_RECORD_QUANTITY);
