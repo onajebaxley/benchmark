@@ -2,10 +2,15 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: "benchmark"
+  namespace: sandbox
   labels:
     app: benchmark
 spec:
   containers:
     - name: "benchmark"
       image: "onajebaxley/test:latest"
+      imagePullPolicy: "Always"
+      env:
+        - name: URI
+          value: "mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017?replicaSet=rs0"
 
