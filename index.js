@@ -17,7 +17,7 @@ const URI = process.env.URI || 'mongodb://mongo-0.mongo:27017';
 const DB_NAME = 'test';
 const TABLE_NAME = 'demographics';
 const TABLE_OPTIONS = { autoIndexId: false, indexOptionDefaults: { } };
-const TARGET_RECORD_QUANTITY = 2500;
+const TARGET_RECORD_QUANTITY = 5000;
 
 
 /**
@@ -56,7 +56,6 @@ function parseCsvData(dataFilePath) {
         obj['_id'] = data[0].trim();
         // TODO: Remove debugging loop below (when applicable)
         if (ids.indexOf(obj['_id']) < 0) {
-            console.log(`${obj['_id']}`);
             ids.push(obj['_id']);
         } else {
             console.log(`ERROR pushing duplicate id: ${obj['_id']} at index ${i + 1}`);
@@ -82,6 +81,7 @@ function timeRecordInsertion(collection, numRecords) {
     return new Promise((resolve, reject) => {
         let sampleData = parseCsvData(DATA_FILEPATH);
         let numDuplicates = 0;
+        let recordsInserted = 0;
 
         console.log(`Duplicating test data from ${sampleData.length} to ${numRecords} records...`);
         // Add elements to array until it reaches target numRecords
@@ -93,17 +93,7 @@ function timeRecordInsertion(collection, numRecords) {
         }
         console.log(`Test data reached ${sampleData.length}. ${numDuplicates} records duped`);
 
-        // Insert 1000 records
-        console.log(`Inserting documents into ${collection.collectionName}...`);
-        let hrTime = process.hrtime();
-        let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
-
-        collection.insertMany(sampleData, {}, (err, res) => {
-            if (err) {
-                console.log(`ERROR inserting into collection: ${err.message}`);
-                return reject(err);
-            }
-
+        let _computeTimeDiff = () => {
             hrTime = process.hrtime();
             let endTime = hrTime[0] * 1000000000 + hrTime[1]; // end time in sE(-9)
             let nanoDiff = endTime - startTime;
@@ -111,7 +101,51 @@ function timeRecordInsertion(collection, numRecords) {
             console.log(`Took ${nanoDiff} seconds to insert ${numRecords} records`);
 
             return resolve(nanoDiff);
-        });
+        };
+
+        let _insertCb = (err, res) => {
+            if (err) {
+                console.log(`ERR inserting into collection: ${err.message}`);
+                return;
+            }
+
+            recordsInserted += 1;
+            console.log(`records inserted: ${recordsInserted}`);
+
+            if (recordsInserted >= numRecords) {
+                _computeTimeDiff();
+            }
+        };
+
+        // Insert 1000 records
+        console.log(`Inserting documents into ${collection.collectionName}...`);
+        let hrTime = process.hrtime();
+        let startTime = hrTime[0] * 1000000000 + hrTime[1]; // start in sE(-9)
+
+        // TODO: Consider inserting via callback (ensuring order) vs for-loop
+        for (let i = 0; i < sampleData.length; i++) {
+            let waitTime = 100 + Math.ceil((numRecords * 2) / (i + 1));
+
+            setTimeout(() => {
+                console.log(`Inserting ${sampleData[i].jurisdiction_name}...`);
+                collection.insert(sampleData[i], {}, _insertCb);
+            }, waitTime);
+        }
+
+        // collection.insertMany(sampleData, {}, (err, res) => {
+        //     if (err) {
+        //         console.log(`ERROR inserting into collection: ${err.message}`);
+        //         return reject(err);
+        //     }
+
+        //     hrTime = process.hrtime();
+        //     let endTime = hrTime[0] * 1000000000 + hrTime[1]; // end time in sE(-9)
+        //     let nanoDiff = endTime - startTime;
+
+        //     console.log(`Took ${nanoDiff} seconds to insert ${numRecords} records`);
+
+        //     return resolve(nanoDiff);
+        // });
     });
 }
 
@@ -285,7 +319,7 @@ function init(err, clientConn) {
         console.log(`Collection wiped. ${res.n} documents deleted`);
 
         // Run test
-        return timeStreamInsertion(collection, TARGET_RECORD_QUANTITY);
+        return timeRecordInsertion(collection, TARGET_RECORD_QUANTITY);
     }).then((res) => {
         console.log(`Insertion(s) complete. Time diff: ${res}`);
 
